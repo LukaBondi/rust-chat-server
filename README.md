@@ -1,3 +1,7 @@
+# Modified
+
+This project has been modified for an assignment. Please check out the creator's original work [here](https://github.com/Yengas/rust-chat-server/tree/main)
+
 # Rust Chat Server
 
 This project serves as a learning exercise in [Rust](https://www.rust-lang.org/), [Tokio](https://tokio.rs/), [Channels](https://tokio.rs/tokio/tutorial/channels), and TUI (Terminal User Interface) programming. It features a room-based chat server with a Terminal User Interface (TUI), utilizing technologies such as Tokio, Ratatui, and a Redux-inspired architecture.
