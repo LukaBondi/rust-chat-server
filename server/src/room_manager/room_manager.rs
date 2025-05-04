@@ -66,4 +66,29 @@ impl RoomManager {
 
         Ok(())
     }
+
+    pub async fn add_room_history(&self, handle: &UserSessionHandle, content: String)-> anyhow::Result<()> {
+        let room = self
+            .chat_rooms
+            .get(handle.room())
+            .ok_or_else(|| anyhow::anyhow!("room '{}' not found", handle.room()))?;
+
+        let mut room = room.lock().await;
+
+        room.add_message_to_history(handle.user_id().to_string(), content);
+
+        Ok(())
+    }
+
+    /// Get specific room (immutable borrow)
+    pub async fn get_room_history(&self, handle: &UserSessionHandle) -> anyhow::Result<Vec<(String, String)>> {
+        let room = self
+            .chat_rooms
+            .get(handle.room())
+            .ok_or_else(|| anyhow::anyhow!("room '{}' not found", handle.room()))?;
+
+        let room = room.lock().await;
+
+        Ok(room.get_message_history())
+    }
 }

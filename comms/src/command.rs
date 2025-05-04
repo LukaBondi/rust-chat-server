@@ -29,6 +29,14 @@ pub struct SendMessageCommand {
 
 /// User Command for quitting the whole chat session.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GetHistoryCommand {
+    // The room to send the message to.
+    #[serde(rename = "r")]
+    pub room: String,
+}
+
+/// User Command for quitting the whole chat session.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QuitCommand;
 
 /// A user command which can be sent to the server by a single user session.
@@ -39,6 +47,7 @@ pub enum UserCommand {
     JoinRoom(JoinRoomCommand),
     LeaveRoom(LeaveRoomCommand),
     SendMessage(SendMessageCommand),
+    GetHistory(GetHistoryCommand),
     Quit(QuitCommand),
 }
 

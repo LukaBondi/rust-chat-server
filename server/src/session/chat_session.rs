@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, string, sync::Arc};
 
 use anyhow::Context;
 use comms::{
@@ -10,7 +10,7 @@ use tokio::{
     task::{AbortHandle, JoinSet},
 };
 
-use crate::room_manager::{RoomManager, SessionAndUserId, UserSessionHandle};
+use crate::room_manager::{self, RoomManager, SessionAndUserId, UserSessionHandle};
 
 pub(super) struct ChatSession {
     session_and_user_id: SessionAndUserId,
@@ -79,6 +79,10 @@ impl ChatSession {
             }
             UserCommand::SendMessage(cmd) => {
                 if let Some((user_session_handle, _)) = self.joined_rooms.get(&cmd.room) {
+                    self.room_manager.add_room_history(
+                        user_session_handle, 
+                        cmd.content.clone()
+                    ).await?;
                     let _ = user_session_handle.send_message(cmd.content);
                 }
             }
@@ -88,22 +92,36 @@ impl ChatSession {
                     self.cleanup_room(urp).await?;
                 }
             }
+            UserCommand::GetHistory(cmd) => {
+                if let Some((user_session_handle, _)) = self.joined_rooms.get(&cmd.room) {
+                    // Fetch room history using borrowed handle
+                    let history = self.room_manager.get_room_history(&user_session_handle).await?;
+                    self.mpsc_tx
+                        .send(Event::HistoryResponse(event::HistoryResponseEvent {
+                            room: cmd.room,
+                            history: history,
+                        }
+                    )).await?;
+                }
+            }
             _ => {}
         }
 
         Ok(())
     }
 
-    // TODO: optimize the performance of this function. leaving one by one may not be a good idea.
     /// Leave all the rooms the user is currently participating in
     pub async fn leave_all_rooms(&mut self) -> anyhow::Result<()> {
-        // drain the joined rooms to a variable, necessary to avoid borrowing self
-        let drained = self.joined_rooms.drain().collect::<Vec<_>>();
+         // Collect all the room names (keys) the user is currently part of
+        let rooms_to_leave = self.joined_rooms.keys().cloned().collect::<Vec<String>>();
 
-        for (_, urp) in drained {
-            self.cleanup_room(urp).await?;
+        // Iterate over the room names to leave them
+        for room in rooms_to_leave {
+            if let Some(urp) = self.joined_rooms.remove(&room) {
+                self.cleanup_room(urp).await?;
+            }
         }
-
+        
         Ok(())
     }
 

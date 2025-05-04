@@ -89,13 +89,25 @@ impl StateStore {
                             }
                         },
                         Action::SelectRoom { room } => {
+                            let room_cloned = room.clone();
                             if let Some(false) = state.try_set_active_room(room.as_str()).map(|room_data| room_data.has_joined) {
+                                // Handle room joining
                                 command_writer
                                     .write(&command::UserCommand::JoinRoom(command::JoinRoomCommand {
-                                        room,
-                                    }))
-                                    .await
-                                    .context("could not join room")?;
+                                        room: room,
+                                }))
+                                .await
+                                .context("could not join room")?;
+                            }
+
+                            // Handle history fetching (first time only)
+                            if let Some(true) = state.is_room_first_time(room_cloned.as_str()) {
+                                command_writer
+                                    .write(&command::UserCommand::GetHistory(command::GetHistoryCommand {
+                                        room: room_cloned,
+                                }))
+                                .await
+                                .context("could not request history")?;
                             }
                         },
                         Action::Exit => {

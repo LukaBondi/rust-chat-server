@@ -1,6 +1,7 @@
 use comms::event::{self, Event};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
+use std::collections::VecDeque;
 
 use super::{
     user_registry::UserRegistry, user_session_handle::UserSessionHandle, SessionAndUserId,
@@ -15,6 +16,12 @@ pub struct ChatRoomMetadata {
 
 const BROADCAST_CHANNEL_CAPACITY: usize = 100;
 
+#[derive(Debug, Clone)]
+pub struct ChatMessage {
+    user_id: String,
+    content: String,
+}
+
 #[derive(Debug)]
 /// [ChatRoom] handles the participants of a chat room and the primary broadcast channel
 /// A [UserSessionHandle] is handed out to a user when they join the room
@@ -22,6 +29,7 @@ pub struct ChatRoom {
     metadata: ChatRoomMetadata,
     broadcast_tx: broadcast::Sender<Event>,
     user_registry: UserRegistry,
+    message_history: VecDeque<ChatMessage>, 
 }
 
 impl ChatRoom {
@@ -32,6 +40,7 @@ impl ChatRoom {
             metadata,
             broadcast_tx,
             user_registry: UserRegistry::new(),
+            message_history: VecDeque::with_capacity(10),
         }
     }
 
@@ -70,6 +79,23 @@ impl ChatRoom {
         }
 
         (broadcast_rx, user_session_handle)
+    }
+
+    /* Add message to queue, pop front if exceed 10 */
+    pub fn add_message_to_history(&mut self, user_id: String, content: String) {
+        let message = ChatMessage { user_id, content };
+        if self.message_history.len() >= 10 {
+            self.message_history.pop_front();
+        }
+        self.message_history.push_back(message);
+    }
+
+    /* Return a cloned iterator of the history */
+    pub fn get_message_history(&self) -> Vec<(String, String)> {
+        self.message_history
+            .iter()
+            .map(|msg| (msg.user_id.clone(), msg.content.clone()))
+            .collect()
     }
 
     /// Remove a participant from the room and broadcast that they left

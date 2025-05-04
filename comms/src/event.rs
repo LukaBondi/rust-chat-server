@@ -72,6 +72,17 @@ pub struct UserMessageBroadcastEvent {
     pub content: String,
 }
 
+/// A reply to the user chat history request
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HistoryResponseEvent {
+    /// The slug of the room the user has sent the message to
+    #[serde(rename = "r")]
+    pub room: String,
+    /// The history of the chat room
+    #[serde(rename = "h")]
+    pub history: Vec<(String, String)>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "_et", rename_all = "snake_case")]
 /// Events that can be sent to the client
@@ -81,6 +92,7 @@ pub enum Event {
     RoomParticipation(RoomParticipationBroadcastEvent),
     UserJoinedRoom(UserJoinedRoomReplyEvent),
     UserMessage(UserMessageBroadcastEvent),
+    HistoryResponse(HistoryResponseEvent),
 }
 
 #[cfg(test)]

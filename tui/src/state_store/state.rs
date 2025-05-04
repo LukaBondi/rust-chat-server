@@ -27,6 +27,8 @@ pub struct RoomData {
     pub has_joined: bool,
     /// Has unread messages
     pub has_unread: bool,
+    /// First time joining room
+    pub first_time: bool,
 }
 
 impl Default for RoomData {
@@ -38,6 +40,7 @@ impl Default for RoomData {
             messages: CircularQueue::with_capacity(MAX_MESSAGES_TO_STORE_PER_ROOM),
             has_joined: false,
             has_unread: false,
+            first_time: true,
         }
     }
 }
@@ -106,7 +109,7 @@ impl State {
                     .rooms
                     .clone()
                     .into_iter()
-                    .map(|r| (r.name.clone(), RoomData::new(r.name, r.description)))
+                    .map(|r: event::RoomDetail| (r.name.clone(), RoomData::new(r.name, r.description)))
                     .collect();
             }
             event::Event::RoomParticipation(event) => {
@@ -140,7 +143,7 @@ impl State {
             }
             event::Event::UserJoinedRoom(event) => {
                 self.room_data_map.get_mut(&event.room).unwrap().users =
-                    event.users.clone().into_iter().collect();
+                    event.users.clone().into_iter().collect();                
             }
             event::Event::UserMessage(event) => {
                 let room_data = self.room_data_map.get_mut(&event.room).unwrap();
@@ -155,6 +158,19 @@ impl State {
                         room_data.has_unread = true;
                     }
                 }
+            }
+            event::Event::HistoryResponse(event) => {
+                if let Some(room_data) = self.room_data_map.get_mut(&event.room) {
+                    // Convert each (user_id, content) pair to MessageBoxItem
+                    for (user_id, content) in event.history.clone() {
+                        room_data.messages.push(MessageBoxItem::Message {
+                            user_id,
+                            content,
+                        });
+                    }
+                    room_data.first_time = false;
+                }
+
             }
         }
     }
@@ -181,6 +197,12 @@ impl State {
         self.active_room = Some(String::from(room));
 
         Some(room_data)
+    }
+
+    /// Check if it's the first time entering the room
+    pub fn is_room_first_time(&mut self, room: &str) -> Option<bool> {
+        let room_data = self.room_data_map.get_mut(room)?;
+        Some(room_data.first_time)
     }
 
     pub fn tick_timer(&mut self) {
